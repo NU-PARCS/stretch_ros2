@@ -47,7 +47,7 @@ bt_navigator:
     odom_topic: /odom
     default_bt_xml_filename: "navigate_w_replanning_and_recovery.xml"
     bt_loop_duration: 10
-    default_server_timeout: 20
+    default_server_timeout: 60
     plugin_lib_names:
     - nav2_compute_path_to_pose_action_bt_node
     - nav2_compute_path_through_poses_action_bt_node
