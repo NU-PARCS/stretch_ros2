@@ -355,6 +355,10 @@ class StretchDriver(Node):
         # publish runstop event
         runstop_event = Bool()
         runstop_event.data = robot_status['pimu']['runstop_event']
+
+        if self.gamepad_teleop.controller_state['right_trigger_pulled'] > 0.5:
+            runstop_event.data = True
+
         self.runstop_event_pub.publish(runstop_event)
 
         # publish stretch_driver operation mode
@@ -501,7 +505,7 @@ class StretchDriver(Node):
         self.is_gamepad_dongle_pub.publish(b)
         j = unpack_gamepad_state_to_joy(self.gamepad_teleop.controller_state)
         j.header.stamp = current_time
-        self.gamepad_state_pub.publish(j)
+        self.gamepad_state_pub.publish(j)            
 
         self.robot_mode_rwlock.release_read()
 

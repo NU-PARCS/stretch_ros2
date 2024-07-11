@@ -2,10 +2,11 @@ from ament_index_python.packages import get_package_share_path
 
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument
-from launch.substitutions import Command, LaunchConfiguration
+from launch.substitutions import Command, LaunchConfiguration, TextSubstitution
 import launch_ros.descriptions
 from launch_ros.actions import Node
 import launch_ros
+from launch.conditions import LaunchConfigurationEquals
 
 
 def generate_launch_description():
@@ -35,6 +36,17 @@ def generate_launch_description():
         description='Path to the calibrated controller args file'
     )
 
+    joy_runstop_enabled_arg = DeclareLaunchArgument(
+        'joy_runstop_enabled',
+        default_value='True', choices=['True', 'False'],
+        description='Whether the joystick runstop is enabled'
+    )
+
+    joy_node = Node(package='joy',
+                    executable='joy_node',
+                    output='screen',
+                    condition=LaunchConfigurationEquals('joy_runstop_enabled', TextSubstitution(text='True')))
+
     robot_description_content = launch_ros.parameter_descriptions.ParameterValue( Command(['xacro ', str(get_package_share_path('stretch_description') / 'urdf' / 'stretch.urdf')]), value_type=str)
 
     joint_state_publisher = Node(package='joint_state_publisher',
@@ -57,7 +69,8 @@ def generate_launch_description():
          'controller_calibration_file': LaunchConfiguration('calibrated_controller_yaml_file'),
          'broadcast_odom_tf': LaunchConfiguration('broadcast_odom_tf'),
          'fail_out_of_range_goal': LaunchConfiguration('fail_out_of_range_goal'),
-         'mode': LaunchConfiguration('mode')}
+         'mode': LaunchConfiguration('mode'),
+         'joy_runstop_enabled': LaunchConfiguration('joy_runstop_enabled')}
     ]
 
     stretch_driver = Node(package='stretch_core',
@@ -72,6 +85,8 @@ def generate_launch_description():
                               declare_fail_out_of_range_goal_arg,
                               declare_mode_arg,
                               declare_controller_arg,
+                              joy_runstop_enabled_arg,
                               joint_state_publisher,
                               robot_state_publisher,
+                              joy_node,
                               stretch_driver])
