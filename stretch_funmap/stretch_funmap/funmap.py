@@ -1280,11 +1280,8 @@ class FunmapNode(hm.HelloNode):
     def reach_point_callback(self, point_stamped):
         self.reach_point = point_stamped
 
-    def reach_point_action_callback(self, goal_handle):
+    def reach_point_service_callback(self, goal_handle):
         goal_pose = goal_handle.request.pose
-        self.reach_point = PointStamped()
-        self.reach_point.header = goal_pose.header
-        self.reach_point.point = goal_pose.position
         # if self.reach_point is None:
         #     self.logger.error('No reach point has been set.')
         #     return response
@@ -1381,7 +1378,7 @@ class FunmapNode(hm.HelloNode):
         self.reach_point_action_server = ActionServer(self,
                                                       NavigateToPose,
                                                       '/funmap/reach_point',
-                                                      execute_callback=self.reach_point_action_callback,
+                                                      execute_callback=self.reach_point_service_callback,
                                                       callback_group = self.callback_group)
         self.reach_point = None
 
