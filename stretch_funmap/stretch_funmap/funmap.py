@@ -21,6 +21,7 @@ from tf2_geometry_msgs import do_transform_pose
 import tf2_ros
 from visualization_msgs.msg import Marker, MarkerArray
 
+
 import hello_helpers.hello_misc as hm
 import hello_helpers.hello_ros_viz as hr
 
@@ -725,9 +726,13 @@ class FunmapNode(hm.HelloNode):
                                                       end_angle=robot_reach_xya_pix[2],
                                                       robot_xya_pix=robot_xya_pix)
 
+        self.logger.info('Navigation complete')
+        print(len(simple_reach_plan))
         if success:
             for pose in simple_reach_plan:
                 self.move_to_pose(pose)
+                self.logger.info("Reached a single target")
+            self.logger.info("Reached the clicked point.")
         else:
             self.logger.error(message)
             self.logger.error('Aborting reach attempt due to failed navigation')
@@ -1272,6 +1277,23 @@ class FunmapNode(hm.HelloNode):
             self.tf2_broadcaster.sendTransform(
             create_map_to_odom_transform(self.map_to_odom_transform_mat, self.clock.now().to_msg()))
 
+    def reach_point_callback(self, point_stamped):
+        self.reach_point = point_stamped
+
+    def reach_point_action_callback(self, goal_handle):
+        goal_pose = goal_handle.request.pose
+        self.reach_point = PointStamped()
+        self.reach_point.header = goal_pose.header
+        self.reach_point.point = goal_pose.position
+        # if self.reach_point is None:
+        #     self.logger.error('No reach point has been set.')
+        #     return response
+
+        self.reach_to_click_callback(self.reach_point)
+        result = NavigateToPose.Result()
+        self.get_logger().info('Finished the reach to click callback')
+        return result
+
     def main(self):
         hm.HelloNode.main(self, 'funmap', 'funmap')
         
@@ -1352,6 +1374,17 @@ class FunmapNode(hm.HelloNode):
 
         self.reach_to_click_subscriber = self.create_subscription(
             PointStamped, '/clicked_point', self.reach_to_click_callback, 1, callback_group=self.callback_group)
+        
+        self.reach_point_subscriber = self.create_subscription(
+            PointStamped, '/reach_point', self.reach_point_callback, 1, callback_group = self.callback_group)
+        
+        self.reach_point_action_server = ActionServer(self,
+                                                      NavigateToPose,
+                                                      '/funmap/reach_point',
+                                                      execute_callback=self.reach_point_action_callback,
+                                                      callback_group = self.callback_group)
+        self.reach_point = None
+
 
         self.tf2_broadcaster = tf2_ros.TransformBroadcaster(self)
 
