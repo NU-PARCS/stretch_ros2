@@ -295,9 +295,9 @@ class HelloNode(Node):
         self.new_thread = threading.Thread(target=self.spin_thread, args=(executor, ), daemon=True)
         self.new_thread.start()
 
-        reentrant_cb = ReentrantCallbackGroup()
+        self.reentrant_cb = ReentrantCallbackGroup()
 
-        self.trajectory_client = ActionClient(self, FollowJointTrajectory, '/stretch_controller/follow_joint_trajectory', callback_group=reentrant_cb)
+        self.trajectory_client = ActionClient(self, FollowJointTrajectory, '/stretch_controller/follow_joint_trajectory', callback_group=self.reentrant_cb)
         server_reached = self.trajectory_client.wait_for_server(timeout_sec=60.0)
         if not server_reached:
             self.get_logger().error('Unable to connect to arm action server. Timeout exceeded.')
@@ -306,40 +306,40 @@ class HelloNode(Node):
         self.tf2_buffer = tf2_ros.Buffer()
         self.tf2_listener = tf2_ros.TransformListener(self.tf2_buffer, self)
         
-        self.tool_subscriber = self.create_subscription(String, '/tool', self.tool_callback, 10, callback_group=reentrant_cb)
+        self.tool_subscriber = self.create_subscription(String, '/tool', self.tool_callback, 10, callback_group=self.reentrant_cb)
 
-        self.joint_states_subscriber = self.create_subscription(JointState, '/stretch/joint_states', self.joint_states_callback, 10, callback_group=reentrant_cb)
-        self.mode_subscriber = self.create_subscription(String, '/mode', self.mode_callback, 10, callback_group=reentrant_cb)
+        self.joint_states_subscriber = self.create_subscription(JointState, '/stretch/joint_states', self.joint_states_callback, 10, callback_group=self.reentrant_cb)
+        self.mode_subscriber = self.create_subscription(String, '/mode', self.mode_callback, 10, callback_group=self.reentrant_cb)
         
-        self.point_cloud_subscriber = self.create_subscription(PointCloud2, '/camera/depth/color/points', self.point_cloud_callback, 10, callback_group=reentrant_cb)
-        self.point_cloud_pub = self.create_publisher(PointCloud2, '/' + node_topic_namespace + '/point_cloud2', 10, callback_group=reentrant_cb)
+        self.point_cloud_subscriber = self.create_subscription(PointCloud2, '/camera/depth/color/points', self.point_cloud_callback, 10, callback_group=self.reentrant_cb)
+        self.point_cloud_pub = self.create_publisher(PointCloud2, '/' + node_topic_namespace + '/point_cloud2', 10, callback_group=self.reentrant_cb)
 
-        self.home_the_robot_service = self.create_client(Trigger, '/home_the_robot', callback_group=reentrant_cb)
+        self.home_the_robot_service = self.create_client(Trigger, '/home_the_robot', callback_group=self.reentrant_cb)
         while not self.home_the_robot_service.wait_for_service(timeout_sec=2.0):
             self.get_logger().info("Waiting on '/home_the_robot' service...")
         self.get_logger().info('Node ' + self.node_name + ' connected to /home_the_robot service.')
 
-        self.stow_the_robot_service = self.create_client(Trigger, '/stow_the_robot', callback_group=reentrant_cb)
+        self.stow_the_robot_service = self.create_client(Trigger, '/stow_the_robot', callback_group=self.reentrant_cb)
         while not self.stow_the_robot_service.wait_for_service(timeout_sec=2.0):
             self.get_logger().info("Waiting on '/stow_the_robot' service...")
         self.get_logger().info('Node ' + self.node_name + ' connected to /stow_the_robot service.')
         
-        self.stop_the_robot_service = self.create_client(Trigger, '/stop_the_robot', callback_group=reentrant_cb)
+        self.stop_the_robot_service = self.create_client(Trigger, '/stop_the_robot', callback_group=self.reentrant_cb)
         while not self.stop_the_robot_service.wait_for_service(timeout_sec=2.0):
             self.get_logger().info("Waiting on '/stop_the_robot' service...")
         self.get_logger().info('Node ' + self.node_name + ' connected to /stop_the_robot service.')
 
-        self.switch_to_trajectory_mode_service = self.create_client(Trigger, '/switch_to_trajectory_mode', callback_group=reentrant_cb)
+        self.switch_to_trajectory_mode_service = self.create_client(Trigger, '/switch_to_trajectory_mode', callback_group=self.reentrant_cb)
         while not self.switch_to_trajectory_mode_service.wait_for_service(timeout_sec=2.0):
             self.get_logger().info("Waiting on '/switch_to_trajectory_mode' service...")
         self.get_logger().info('Node ' + self.node_name + ' connected to /switch_to_trajectory_mode service.')
 
-        self.switch_to_position_mode_service = self.create_client(Trigger, '/switch_to_position_mode', callback_group=reentrant_cb)
+        self.switch_to_position_mode_service = self.create_client(Trigger, '/switch_to_position_mode', callback_group=self.reentrant_cb)
         while not self.switch_to_position_mode_service.wait_for_service(timeout_sec=2.0):
             self.get_logger().info("Waiting on '/switch_to_position_mode' service...")
         self.get_logger().info('Node ' + self.node_name + ' connected to /switch_to_position_mode service.')
 
-        self.switch_to_navigation_mode_service = self.create_client(Trigger, '/switch_to_navigation_mode', callback_group=reentrant_cb)
+        self.switch_to_navigation_mode_service = self.create_client(Trigger, '/switch_to_navigation_mode', callback_group=self.reentrant_cb)
         while not self.switch_to_navigation_mode_service.wait_for_service(timeout_sec=2.0):
             self.get_logger().info("Waiting on '/switch_to_navigation_mode' service...")
         self.get_logger().info('Node ' + self.node_name + ' connected to /switch_to_navigation_mode service.')
