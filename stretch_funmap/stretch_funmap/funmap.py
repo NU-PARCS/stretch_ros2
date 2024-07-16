@@ -673,7 +673,7 @@ class FunmapNode(hm.HelloNode):
 
         # reach out to the target
         # Reach to a point that is not fully at the target.
-        safety_reach_m = 0.1  # 10cm away from the target
+        safety_reach_m = 0.2  # 10cm away from the target
         simple_reach_plan.append(
             {'wrist_extension': wrist_extension_m - safety_reach_m})
 
@@ -1289,6 +1289,7 @@ class FunmapNode(hm.HelloNode):
         self.reach_to_click_callback(self.reach_point)
         result = NavigateToPose.Result()
         self.get_logger().info('Finished the reach to click callback')
+        goal_handle.succeed()
         return result
 
     def main(self):
