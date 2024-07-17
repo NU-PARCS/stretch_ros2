@@ -356,7 +356,7 @@ class StretchDriver(Node):
         runstop_event = Bool()
         runstop_event.data = robot_status['pimu']['runstop_event']
 
-        if self.gamepad_teleop.controller_state['right_trigger_pulled'] > 0.5:
+        if self.joy_runstop_enabled and self.gamepad_teleop.controller_state['right_trigger_pulled'] > 0.5:
             runstop_event.data = True
 
         self.runstop_event_pub.publish(runstop_event)
@@ -810,6 +810,10 @@ class StretchDriver(Node):
             self.turn_on_trajectory_mode()
         elif mode ==  "gamepad":
             self.turn_on_gamepad_mode()
+
+        self.declare_parameter('joy_runstop_enabled', True)
+        self.joy_runstop_enabled = self.get_parameter('joy_runstop_enabled').value
+        self.get_logger().info('joy_runstop_enabled = ' + str(self.joy_runstop_enabled))
 
         self.declare_parameter('broadcast_odom_tf', False)
         self.broadcast_odom_tf = self.get_parameter('broadcast_odom_tf').value

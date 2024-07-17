@@ -42,10 +42,10 @@ def generate_launch_description():
         description='Whether the joystick runstop is enabled'
     )
 
-    joy_node = Node(package='joy',
-                    executable='joy_node',
-                    output='screen',
-                    condition=LaunchConfigurationEquals('joy_runstop_enabled', TextSubstitution(text='True')))
+    # joy_node = Node(package='joy',
+    #                 executable='joy_node',
+    #                 output='screen',
+    #                 condition=LaunchConfigurationEquals('joy_runstop_enabled', TextSubstitution(text='True')))
 
     robot_description_content = launch_ros.parameter_descriptions.ParameterValue( Command(['xacro ', str(get_package_share_path('stretch_description') / 'urdf' / 'stretch.urdf')]), value_type=str)
 
@@ -72,6 +72,7 @@ def generate_launch_description():
          'mode': LaunchConfiguration('mode'),
          'joy_runstop_enabled': LaunchConfiguration('joy_runstop_enabled')}
     ]
+    print(stretch_driver_params)
 
     stretch_driver = Node(package='stretch_core',
                           executable='stretch_driver',
@@ -88,5 +89,5 @@ def generate_launch_description():
                               joy_runstop_enabled_arg,
                               joint_state_publisher,
                               robot_state_publisher,
-                              joy_node,
+                            #   joy_node,
                               stretch_driver])
