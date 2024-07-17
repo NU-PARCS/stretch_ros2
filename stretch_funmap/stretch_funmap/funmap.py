@@ -653,7 +653,8 @@ class FunmapNode(hm.HelloNode):
         simple_reach_plan = []
 
         # close the gripper
-        simple_reach_plan.append({'joint_gripper_finger_left': 0.0})
+        simple_reach_plan.append({'joint_gripper_finger_left': 0.2})
+        simple_reach_plan.append({'joint_wrist_pitch': -0.2})
 
         # move the lift to be at the height of the target
         # The fingers of the gripper touch the floor at a joint_lift
@@ -661,7 +662,7 @@ class FunmapNode(hm.HelloNode):
         # the target will result in the fingers being at the height of
         # the target.
         height_m = base_link_point[2]
-        safety_z_m = 0.0
+        safety_z_m = 0.03  # 5cm above the target
         simple_reach_plan.append({'joint_lift': height_m + safety_z_m})
 
         # rotate the gripper to be in the center

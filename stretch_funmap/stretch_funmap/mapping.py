@@ -30,7 +30,7 @@ def stow_and_lower_arm(node):
     node.move_to_pose(pose)
     
     # avoid blocking the laser range finder with the gripper
-    pose = {'joint_lift': 0.22}
+    pose = {'joint_lift': 0.35}
     node.move_to_pose(pose)
     return 'lowered'
 
