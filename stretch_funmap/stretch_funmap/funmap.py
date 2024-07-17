@@ -738,7 +738,7 @@ class FunmapNode(hm.HelloNode):
             self.logger.error(message)
             self.logger.error('Aborting reach attempt due to failed navigation')
 
-        return
+        return success
 
     def navigate_to_map_pixel(self, end_xy, end_angle=None, robot_xya_pix=None, floor_mask=None):
         # Move the head to a pose from which the D435i can detect
@@ -1287,10 +1287,13 @@ class FunmapNode(hm.HelloNode):
         #     self.logger.error('No reach point has been set.')
         #     return response
 
-        self.reach_to_click_callback(self.reach_point)
+        success = self.reach_to_click_callback(self.reach_point)
         result = NavigateToPose.Result()
         self.get_logger().info('Finished the reach to click callback')
-        goal_handle.succeed()
+        if success:
+            goal_handle.succeed()
+        else:
+            goal_handle.abort()
         return result
 
     def main(self):
