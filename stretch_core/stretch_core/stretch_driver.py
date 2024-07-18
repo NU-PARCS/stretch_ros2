@@ -31,7 +31,7 @@ from std_msgs.msg import Bool, String
 
 from hello_helpers.gripper_conversion import GripperConversion
 from hello_helpers.gamepad_conversion import unpack_joy_to_gamepad_state, unpack_gamepad_state_to_joy, get_default_joy_msg
-from .joint_trajectory_server import JointTrajectoryAction
+from .joint_trajectory_server import JointTrajectoryAction, HeadJointTrajectoryAction, BodyJointTrajectoryAction
 from .stretch_diagnostics import StretchDiagnostics
 
 GRIPPER_DEBUG = False
@@ -668,14 +668,25 @@ class StretchDriver(Node):
     def get_joint_states_callback(self, request, response):
         joint_limits = JointState()
         joint_limits.header.stamp = self.get_clock().now().to_msg()
-        cgs = list(set(self.joint_trajectory_action.command_groups) - set([self.joint_trajectory_action.mobile_base_cg, self.joint_trajectory_action.gripper_cg]))
+        # If command groups are split, the separate body and head joint trajectory action servers need to be added together
+        if self.split_joint_trajectory_controller:
+            base_cgs = set(self.body_joint_trajectory_action.command_groups)
+            base_cgs.update(self.head_joint_trajecotry_action.command_groups)
+            cgs = list(base_cgs - set([self.body_joint_trajectory_action.mobile_base_cg, self.body_joint_trajectory_action.gripper_cg]))
+        else:
+            cgs = list(set(self.joint_trajectory_action.command_groups) - set([self.joint_trajectory_action.mobile_base_cg, self.joint_trajectory_action.gripper_cg]))
+        
         for cg in cgs:
             lower_limit, upper_limit = cg.range
             joint_limits.name.append(cg.name)
             joint_limits.position.append(lower_limit) # Misuse position array to mean lower limits
             joint_limits.velocity.append(upper_limit) # Misuse velocity array to mean upper limits
 
-        gripper_cg = self.joint_trajectory_action.gripper_cg
+        if self.split_joint_trajectory_controller:
+            gripper_cg = self.body_joint_trajectory_action.gripper_cg
+        else:
+            gripper_cg = self.joint_trajectory_action.gripper_cg
+            
         if gripper_cg is not None:
             lower_aperture_limit, upper_aperture_limit = gripper_cg.range_aperture_m
             joint_limits.name.append('gripper_aperture')
@@ -814,6 +825,10 @@ class StretchDriver(Node):
         self.declare_parameter('joy_runstop_enabled', True)
         self.joy_runstop_enabled = self.get_parameter('joy_runstop_enabled').value
         self.get_logger().info('joy_runstop_enabled = ' + str(self.joy_runstop_enabled))
+
+        self.declare_parameter('split_joint_trajectory_controller', False)
+        self.split_joint_trajectory_controller = self.get_parameter('split_joint_trajectory_controller').value
+        self.get_logger().info('split_joint_trajectory_controller = ' + str(self.split_joint_trajectory_controller))
 
         self.declare_parameter('broadcast_odom_tf', False)
         self.broadcast_odom_tf = self.get_parameter('broadcast_odom_tf').value
@@ -978,14 +993,25 @@ def main():
         rclpy.init()
         executor = MultiThreadedExecutor(num_threads=2)
         node = StretchDriver()
-        node.joint_trajectory_action = JointTrajectoryAction(node, node.action_server_rate)
-        executor.add_node(node)
-        executor.add_node(node.joint_trajectory_action)
+        if node.split_joint_trajectory_controller:
+            node.head_joint_trajectory_action = HeadJointTrajectoryAction(node, node.action_server_rate)
+            node.body_joint_trajectory_action = BodyJointTrajectoryAction(node, node.action_server_rate)
+            executor.add_node(node)
+            executor.add_node(node.head_joint_trajectory_action)
+            executor.add_node(node.body_joint_trajectory_action)
+        else:
+            node.joint_trajectory_action = JointTrajectoryAction(node, node.action_server_rate)
+            executor.add_node(node)
+            executor.add_node(node.joint_trajectory_action)
         try:
             executor.spin()
         finally:
             executor.shutdown()
-            node.joint_trajectory_action.destroy_node()
+            if node.split_joint_trajectory_controller:
+                node.head_joint_trajectory_action.destroy_node()
+                node.body_joint_trajectory_action.destroy_node()
+            else:
+                node.joint_trajectory_action.destroy_node()
             node.destroy_node()
     except (KeyboardInterrupt, ThreadServiceExit):
         node.gamepad_teleop.stop()

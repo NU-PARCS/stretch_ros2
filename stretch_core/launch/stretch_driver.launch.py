@@ -42,6 +42,12 @@ def generate_launch_description():
         description='Whether the joystick runstop is enabled'
     )
 
+    split_joint_trajectory_controller_arg = DeclareLaunchArgument(
+        'split_joint_trajectory_controller',
+        default_value='False', choices=['True', 'False'],
+        description='Whether to use the split_joint_trajectory classes (Head and Body separate)'
+    )
+
     # joy_node = Node(package='joy',
     #                 executable='joy_node',
     #                 output='screen',
@@ -70,7 +76,8 @@ def generate_launch_description():
          'broadcast_odom_tf': LaunchConfiguration('broadcast_odom_tf'),
          'fail_out_of_range_goal': LaunchConfiguration('fail_out_of_range_goal'),
          'mode': LaunchConfiguration('mode'),
-         'joy_runstop_enabled': LaunchConfiguration('joy_runstop_enabled')}
+         'joy_runstop_enabled': LaunchConfiguration('joy_runstop_enabled'),
+         'split_joint_trajectory_controller': LaunchConfiguration('split_joint_trajectory_controller'),}
     ]
     print(stretch_driver_params)
 
@@ -87,6 +94,7 @@ def generate_launch_description():
                               declare_mode_arg,
                               declare_controller_arg,
                               joy_runstop_enabled_arg,
+                              split_joint_trajectory_controller_arg,
                               joint_state_publisher,
                               robot_state_publisher,
                             #   joy_node,

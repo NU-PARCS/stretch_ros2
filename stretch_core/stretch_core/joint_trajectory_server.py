@@ -413,3 +413,90 @@ class JointTrajectoryAction(Node):
         self.node.robot.base.left_wheel.pull_status()
         self.node.robot.base.right_wheel.pull_status()
         self.node.robot.base.update_trajectory()
+
+
+# Class for head joint trajectory action
+# This splits the joint trajectory action into two separate classes, in order to send simultaneous goals to the head and body separately
+class HeadJointTrajectoryAction(JointTrajectoryAction):
+
+    def __init__(self, node, action_server_rate_hz):
+        rclpy.Node().__init__('head_joint_trajectory_action')
+        self.node = node
+        self._goal_handle = None
+        self._goal_lock = threading.Lock()
+        self.action_server_rate = self.node.create_rate(action_server_rate_hz)
+        self.server = ActionServer(self.node, FollowJointTrajectory, '/stretch_controller/head_follow_joint_trajectory',
+                                   execute_callback=self.execute_cb,
+                                   cancel_callback=self.cancel_cb,
+                                   goal_callback=self.goal_cb,
+                                   handle_accepted_callback=self.handle_accepted_cb,
+                                   callback_group=ReentrantCallbackGroup())
+        
+        self.debug_dir = Path(hu.get_stretch_directory('goals'))
+        if not self.debug_dir.exists():
+            self.debug_dir.mkdir()
+        
+        # Position mode init
+        self.head_pan_cg = HeadPanCommandGroup(node=self.node) \
+            if 'head_pan' in self.node.robot.head.joints else None
+        self.head_tilt_cg = HeadTiltCommandGroup(node=self.node) \
+            if 'head_tilt' in self.node.robot.head.joints else None
+        self.command_groups = [self.head_pan_cg, self.head_tilt_cg]
+        self.command_groups = [cg for cg in self.command_groups if cg is not None]
+
+        # Trajectory mode init
+        self.joints = get_trajectory_components(self.node.robot)
+        self.node.robot._update_trajectory_dynamixel = lambda : None
+        self.node.robot._update_trajectory_non_dynamixel = lambda : None
+
+        self.timeout = 0.2 # seconds
+        self.last_goal_time = self.get_clock().now().to_msg()
+
+        self.latest_goal_id = 0
+
+
+
+class BodyJointTrajectoryAction(JointTrajectoryAction):
+
+    def __init__(self, node, action_server_rate_hz):
+        rclpy.Node().__init__('body_joint_trajectory_action')
+        self.node = node
+        self._goal_handle = None
+        self._goal_lock = threading.Lock()
+        self.action_server_rate = self.node.create_rate(action_server_rate_hz)
+        self.server = ActionServer(self.node, FollowJointTrajectory, '/stretch_controller/body_follow_joint_trajectory',
+                                   execute_callback=self.execute_cb,
+                                   cancel_callback=self.cancel_cb,
+                                   goal_callback=self.goal_cb,
+                                   handle_accepted_callback=self.handle_accepted_cb,
+                                   callback_group=ReentrantCallbackGroup())
+        
+        self.debug_dir = Path(hu.get_stretch_directory('goals'))
+        if not self.debug_dir.exists():
+            self.debug_dir.mkdir()
+        
+        # Position mode init
+        self.wrist_yaw_cg = WristYawCommandGroup(node=self.node) \
+            if 'wrist_yaw' in self.node.robot.end_of_arm.joints else None
+        self.wrist_pitch_cg = WristPitchCommandGroup(node=self.node) \
+            if 'wrist_pitch' in self.node.robot.end_of_arm.joints else None
+        self.wrist_roll_cg = WristRollCommandGroup(node=self.node) \
+            if 'wrist_roll' in self.node.robot.end_of_arm.joints else None
+        self.gripper_cg = GripperCommandGroup(node=self.node) \
+            if 'stretch_gripper' in self.node.robot.end_of_arm.joints else None
+        self.arm_cg = ArmCommandGroup(node=self.node)
+        self.lift_cg = LiftCommandGroup(node=self.node)
+        self.mobile_base_cg = MobileBaseCommandGroup(node=self.node)
+        self.command_groups = [self.arm_cg, self.lift_cg, self.mobile_base_cg, self.wrist_yaw_cg, 
+                               self.wrist_pitch_cg, self.wrist_roll_cg, self.gripper_cg]
+        self.command_groups = [cg for cg in self.command_groups if cg is not None]
+
+        # Trajectory mode init
+        self.joints = get_trajectory_components(self.node.robot)
+        self.node.robot._update_trajectory_dynamixel = lambda : None
+        self.node.robot._update_trajectory_non_dynamixel = lambda : None
+
+        self.timeout = 0.2 # seconds
+        self.last_goal_time = self.get_clock().now().to_msg()
+
+        self.latest_goal_id = 0
