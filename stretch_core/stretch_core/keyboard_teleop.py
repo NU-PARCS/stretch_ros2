@@ -78,6 +78,11 @@ class GetKeyboardCommands:
         print('              x ARM IN                     ')
         print('                                           ')
         print('                                           ')
+        print('              1 ROLL LEFT                  ')
+        print(' z WRIST UP             c WRIST DOWN       ')
+        print('              3 ROLL RIGHT                 ')
+        print('                                           ')
+        print('                                           ')
         print('              5 GRIPPER CLOSE              ')
         print('              0 GRIPPER OPEN               ')
         print('                                           ')
@@ -226,6 +231,18 @@ class GetKeyboardCommands:
         if c == '0' or c == '\x1b[2' or c == 'r' or c == 'R':
             # release
             command = {'joint': 'joint_gripper_finger_left', 'delta': self.get_deltas()['rad']}
+
+        if c == 'z' or c == 'Z':
+            command = {'joint': 'joint_wrist_pitch', 'delta': self.get_deltas()['rad']}
+        if c == 'c' or c == 'C':
+            command = {'joint': 'joint_wrist_pitch', 'delta': -self.get_deltas()['rad']}
+        if c == '1':
+            command = {'joint': 'joint_wrist_roll', 'delta': -self.get_deltas()['rad']}
+        if c == '3':
+            command = {'joint': 'joint_wrist_roll', 'delta': self.get_deltas()['rad']}
+
+        
+
         if c == 'i' or c == 'I':
             command = {'joint': 'joint_head_tilt', 'delta': (2.0 * self.get_deltas()['rad'])}
         if c == ',' or c == '<':
