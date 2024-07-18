@@ -420,7 +420,7 @@ class JointTrajectoryAction(Node):
 class HeadJointTrajectoryAction(JointTrajectoryAction):
 
     def __init__(self, node, action_server_rate_hz):
-        rclpy.Node().__init__('head_joint_trajectory_action')
+        Node.__init__(self, 'head_joint_trajectory_action')
         self.node = node
         self._goal_handle = None
         self._goal_lock = threading.Lock()
@@ -459,7 +459,7 @@ class HeadJointTrajectoryAction(JointTrajectoryAction):
 class BodyJointTrajectoryAction(JointTrajectoryAction):
 
     def __init__(self, node, action_server_rate_hz):
-        rclpy.Node().__init__('body_joint_trajectory_action')
+        Node.__init__(self, 'body_joint_trajectory_action')
         self.node = node
         self._goal_handle = None
         self._goal_lock = threading.Lock()
