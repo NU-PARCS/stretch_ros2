@@ -281,17 +281,22 @@ class HelloNode(Node):
                 body_trajectory_goal.trajectory.points = [body_point1]
             
             if blocking:
-                self.get_logger().info("Sending head trajectory")
-                self.head_trajectory_client.send_goal(head_trajectory_goal)
-                self.get_logger().info("Finished head trajectory goal")
-                self.get_logger().info("Sending body trajectory")
-                return self.body_trajectory_client.send_goal(body_trajectory_goal)
+                if len(head_joint_names) > 0:
+                    self.get_logger().info("Sending head trajectory")
+                    self.head_trajectory_client.send_goal(head_trajectory_goal)
+                    self.get_logger().info("Finished head trajectory goal")
+                if len(body_joint_names) > 0:
+                    self.get_logger().info("Sending body trajectory")
+                    return self.body_trajectory_client.send_goal(body_trajectory_goal)
                 
             else:
-                self.get_logger().info("Sending head trajectory")
-                self.head_trajectory_client.send_goal_async(head_trajectory_goal)
-                self.get_logger().info("Sending body trajectory")
-                return self.body_trajectory_client.send_goal_async(body_trajectory_goal)
+                if len(head_joint_names) > 0:
+                    self.get_logger().info("Sending head trajectory")
+                    self.head_trajectory_client.send_goal_async(head_trajectory_goal)
+                if len(body_joint_names) > 0:
+                    self.get_logger().info("Sending body trajectory")
+                    return self.body_trajectory_client.send_goal_async(body_trajectory_goal)
+            return
 
     def get_tf(self, from_frame, to_frame):
         """Get current transform between 2 frames. Blocking for 2 secs at worst.
