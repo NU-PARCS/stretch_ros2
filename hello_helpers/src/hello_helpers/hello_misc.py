@@ -217,42 +217,81 @@ class HelloNode(Node):
                 return self.trajectory_client.send_goal_async(trajectory_goal)
         else:
             # If split trajectory controller, generate 2 separate trajectories for the head and body
-            joint_names = [key for key in pose]
-            point1 = JointTrajectoryPoint()
-            point1.time_from_start = Duration(seconds=0).to_msg()
+            head_joint_names = [key for key in pose if 'head' in key]
+            body_joint_names = [key for key in pose if 'head' not in key]
+            
+            head_point1 = JointTrajectoryPoint()
+            head_point1.time_from_start = Duration(seconds=0).to_msg()
+            
+            body_point1 = JointTrajectoryPoint()
+            body_point1.time_from_start = Duration(seconds=0).to_msg()
+            
+            head_trajectory_goal = FollowJointTrajectory.Goal()
+            head_trajectory_goal.goal_time_tolerance = Duration(seconds=1.0).to_msg()
+            head_trajectory_goal.trajectory.joint_names = head_joint_names
 
-            trajectory_goal = FollowJointTrajectory.Goal()
-            trajectory_goal.goal_time_tolerance = Duration(seconds=1.0).to_msg()
-            trajectory_goal.trajectory.joint_names = joint_names
+            body_trajectory_goal = FollowJointTrajectory.Goal()
+            body_trajectory_goal.goal_time_tolerance = Duration(seconds=1.0).to_msg()
+            body_trajectory_goal.trajectory.joint_names = body_joint_names
+            
 
             if self.mode.data == 'trajectory':
-                point0 = JointTrajectoryPoint()
-                point0.time_from_start = Duration(seconds=0).to_msg()
+                head_point0 = JointTrajectoryPoint()
+                head_point0.time_from_start = Duration(seconds=0).to_msg()
                 
-                for joint in joint_names:
-                    point0.positions.append(self.joint_state.position[self.joint_state.name.index(joint)])
+                body_point0 = JointTrajectoryPoint()
+                body_point0.time_from_start = Duration(seconds=0).to_msg()
 
-                trajectory_goal.trajectory.points.append(point0)
-                point1.time_from_start = Duration(seconds=duration).to_msg()
+                for joint in head_joint_names:
+                    head_point0.positions.append(self.joint_state.position[self.joint_state.name.index(joint)])
+
+                head_trajectory_goal.trajectory.points.append(head_point0)
+                head_point1.time_from_start = Duration(seconds=duration).to_msg()
+
+                for joint in body_joint_names:
+                    body_point0.positions.append(self.joint_state.position[self.joint_state.name.index(joint)])
+
+                body_trajectory_goal.trajectory.points.append(body_point0)
+                body_point1.time_from_start = Duration(seconds=duration).to_msg()
 
             if not custom_contact_thresholds: 
-                joint_positions = [pose[key] for key in joint_names]
-                point1.positions = joint_positions
-                trajectory_goal.trajectory.points.append(point1)
+                head_joint_positions = [pose[key] for key in head_joint_names]
+                head_point1.positions = head_joint_positions
+                head_trajectory_goal.trajectory.points.append(head_point1)
+
+                body_joint_positions = [pose[key] for key in body_joint_names]
+                body_point1.positions = body_joint_positions
+                body_trajectory_goal.trajectory.points.append(body_point1)
             else:
-                pose_correct = all([len(pose[key])==2 for key in joint_names])
+                pose_correct = all([len(pose[key])==2 for key in set(head_joint_names + body_joint_names)])
                 if not pose_correct:
                     self.get_logger().error("HelloNode.move_to_pose: Not sending trajectory due to improper pose. custom_contact_thresholds requires 2 values (pose_target, contact_threshold_effort) for each joint name, but pose = {0}".format(pose))
                     return
-                joint_positions = [pose[key][0] for key in joint_names]
-                joint_efforts = [pose[key][1] for key in joint_names]
-                point1.positions = joint_positions
-                point1.effort = joint_efforts
-                trajectory_goal.trajectory.points = [point1]
+                
+                head_joint_positions = [pose[key][0] for key in head_joint_names]
+                head_joint_efforts = [pose[key][1] for key in head_joint_names]
+                head_point1.positions = head_joint_positions
+                head_point1.effort = head_joint_efforts
+                head_trajectory_goal.trajectory.points = [head_point1]
+
+                body_joint_positions = [pose[key][0] for key in body_joint_names]
+                body_joint_efforts = [pose[key][1] for key in body_joint_names]
+                body_point1.positions = body_joint_positions
+                body_point1.effort = body_joint_efforts
+                body_trajectory_goal.trajectory.points = [body_point1]
+            
             if blocking:
-                return self.trajectory_client.send_goal(trajectory_goal)
+                self.get_logger().info("Sending head trajectory")
+                self.head_trajectory_client.send_goal(head_trajectory_goal)
+                self.get_logger().info("Finished head trajectory goal")
+                self.get_logger().info("Sending body trajectory")
+                return self.body_trajectory_client.send_goal(body_trajectory_goal)
+                
             else:
-                return self.trajectory_client.send_goal_async(trajectory_goal)
+                self.get_logger().info("Sending head trajectory")
+                self.head_trajectory_client.send_goal_async(head_trajectory_goal)
+                self.get_logger().info("Sending body trajectory")
+                return self.body_trajectory_client.send_goal_async(trajectory_goal)
 
     def get_tf(self, from_frame, to_frame):
         """Get current transform between 2 frames. Blocking for 2 secs at worst.
@@ -338,11 +377,33 @@ class HelloNode(Node):
 
         self.reentrant_cb = ReentrantCallbackGroup()
 
-        self.trajectory_client = ActionClient(self, FollowJointTrajectory, '/stretch_controller/follow_joint_trajectory', callback_group=self.reentrant_cb)
-        server_reached = self.trajectory_client.wait_for_server(timeout_sec=60.0)
-        if not server_reached:
-            self.get_logger().error('Unable to connect to arm action server. Timeout exceeded.')
-            sys.exit()
+        # Determine if the robot is in split_joint_trajectory_controller mode, as this affects the move_to_pose function
+        self.get_stretch_driver_parameter_service = self.create_client(GetParameters, '/stretch_driver/get_parameters', callback_group=self.reentrant_cb)
+        while not self.get_stretch_driver_parameter_service.wait_for_service(timeout_sec=2.0):
+            self.get_logger().info("Waiting on '/stretch_driver/get_parameters' service...")
+        self.get_logger().info('Node ' + self.node_name + ' connected to /stretch_driver/get_parameters service.')
+        self.split_joint_trajectory_controller = self.get_stretch_driver_parameter_service.call_async(GetParameters.Request(names=['split_joint_trajectory_controller']))[0].values[0].bool_value
+    
+
+        # Connect to the head and body trajectory servers if split_joint_trajectory_controller is True
+        if self.split_joint_trajectory_controller:
+            self.head_trajectory_client = ActionClient(self, FollowJointTrajectory, '/stretch_controller/head_follow_joint_trajectory', callback_group=self.reentrant_cb)
+            server_reached = self.head_trajectory_client.wait_for_server(timeout_sec=60.0)
+            if not server_reached:
+                self.get_logger().error('Unable to connect to head action server. Timeout exceeded.')
+                sys.exit()
+            
+            self.body_trajectory_client = ActionClient(self, FollowJointTrajectory, '/stretch_controller/body_follow_joint_trajectory', callback_group=self.reentrant_cb)
+            server_reached = self.body_trajectory_client.wait_for_server(timeout_sec=60.0)
+            if not server_reached:
+                self.get_logger().error('Unable to connect to body action server. Timeout exceeded.')
+                sys.exit()
+        else:
+            self.trajectory_client = ActionClient(self, FollowJointTrajectory, '/stretch_controller/follow_joint_trajectory', callback_group=self.reentrant_cb)
+            server_reached = self.trajectory_client.wait_for_server(timeout_sec=60.0)
+            if not server_reached:
+                self.get_logger().error('Unable to connect to arm action server. Timeout exceeded.')
+                sys.exit()
         
         self.tf2_buffer = tf2_ros.Buffer()
         self.tf2_listener = tf2_ros.TransformListener(self.tf2_buffer, self)
@@ -385,13 +446,7 @@ class HelloNode(Node):
             self.get_logger().info("Waiting on '/switch_to_navigation_mode' service...")
         self.get_logger().info('Node ' + self.node_name + ' connected to /switch_to_navigation_mode service.')
 
-        # Determine if the robot is in split_joint_trajectory_controller mode, as this affects the move_to_pose function
-        self.get_stretch_driver_parameter_service = self.create_client(GetParameters, '/stretch_driver/get_parameters', callback_group=self.reentrant_cb)
-        while not self.get_stretch_driver_parameter_service.wait_for_service(timeout_sec=2.0):
-            self.get_logger().info("Waiting on '/stretch_driver/get_parameters' service...")
-        self.get_logger().info('Node ' + self.node_name + ' connected to /stretch_driver/get_parameters service.')
-        self.split_joint_trajectory_controller = self.get_stretch_driver_parameter_service.call_async(GetParameters.Request(names=['split_joint_trajectory_controller']))[0].values[0].bool_value
-        
+     
         if wait_for_first_pointcloud:
             # Do not start until a point cloud has been received
             point_cloud_msg = self.point_cloud
