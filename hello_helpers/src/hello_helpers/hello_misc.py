@@ -16,6 +16,8 @@ import tf2_ros
 import numpy as np
 import cv2
 import ros2_numpy
+from rcl_interfaces.srv import GetParameters
+from rcl_interfaces.msg import ParameterValue
 
 import pyquaternion
 
@@ -175,43 +177,82 @@ class HelloNode(Node):
             self.get_logger().warn("Currently in {} mode. Recommend switching either to position or trajectory mode".format(self.mode.data))
             self.get_logger().warn("Commanding joint trajectory server in position mode")
         
-        joint_names = [key for key in pose]
-        point1 = JointTrajectoryPoint()
-        point1.time_from_start = Duration(seconds=0).to_msg()
+        if not self.split_joint_trajectory_controller:
+            joint_names = [key for key in pose]
+            point1 = JointTrajectoryPoint()
+            point1.time_from_start = Duration(seconds=0).to_msg()
 
-        trajectory_goal = FollowJointTrajectory.Goal()
-        trajectory_goal.goal_time_tolerance = Duration(seconds=1.0).to_msg()
-        trajectory_goal.trajectory.joint_names = joint_names
+            trajectory_goal = FollowJointTrajectory.Goal()
+            trajectory_goal.goal_time_tolerance = Duration(seconds=1.0).to_msg()
+            trajectory_goal.trajectory.joint_names = joint_names
 
-        if self.mode.data == 'trajectory':
-            point0 = JointTrajectoryPoint()
-            point0.time_from_start = Duration(seconds=0).to_msg()
+            if self.mode.data == 'trajectory':
+                point0 = JointTrajectoryPoint()
+                point0.time_from_start = Duration(seconds=0).to_msg()
+                
+                for joint in joint_names:
+                    point0.positions.append(self.joint_state.position[self.joint_state.name.index(joint)])
+
+                trajectory_goal.trajectory.points.append(point0)
+                point1.time_from_start = Duration(seconds=duration).to_msg()
+
+            if not custom_contact_thresholds: 
+                joint_positions = [pose[key] for key in joint_names]
+                point1.positions = joint_positions
+                trajectory_goal.trajectory.points.append(point1)
+            else:
+                pose_correct = all([len(pose[key])==2 for key in joint_names])
+                if not pose_correct:
+                    self.get_logger().error("HelloNode.move_to_pose: Not sending trajectory due to improper pose. custom_contact_thresholds requires 2 values (pose_target, contact_threshold_effort) for each joint name, but pose = {0}".format(pose))
+                    return
+                joint_positions = [pose[key][0] for key in joint_names]
+                joint_efforts = [pose[key][1] for key in joint_names]
+                point1.positions = joint_positions
+                point1.effort = joint_efforts
+                trajectory_goal.trajectory.points = [point1]
             
-            for joint in joint_names:
-                point0.positions.append(self.joint_state.position[self.joint_state.name.index(joint)])
-
-            trajectory_goal.trajectory.points.append(point0)
-            point1.time_from_start = Duration(seconds=duration).to_msg()
-
-        if not custom_contact_thresholds: 
-            joint_positions = [pose[key] for key in joint_names]
-            point1.positions = joint_positions
-            trajectory_goal.trajectory.points.append(point1)
+            if blocking:
+                return self.trajectory_client.send_goal(trajectory_goal)
+            else:
+                return self.trajectory_client.send_goal_async(trajectory_goal)
         else:
-            pose_correct = all([len(pose[key])==2 for key in joint_names])
-            if not pose_correct:
-                self.get_logger().error("HelloNode.move_to_pose: Not sending trajectory due to improper pose. custom_contact_thresholds requires 2 values (pose_target, contact_threshold_effort) for each joint name, but pose = {0}".format(pose))
-                return
-            joint_positions = [pose[key][0] for key in joint_names]
-            joint_efforts = [pose[key][1] for key in joint_names]
-            point1.positions = joint_positions
-            point1.effort = joint_efforts
-            trajectory_goal.trajectory.points = [point1]
-        
-        if blocking:
-            return self.trajectory_client.send_goal(trajectory_goal)
-        else:
-            return self.trajectory_client.send_goal_async(trajectory_goal)
+            # If split trajectory controller, generate 2 separate trajectories for the head and body
+            joint_names = [key for key in pose]
+            point1 = JointTrajectoryPoint()
+            point1.time_from_start = Duration(seconds=0).to_msg()
+
+            trajectory_goal = FollowJointTrajectory.Goal()
+            trajectory_goal.goal_time_tolerance = Duration(seconds=1.0).to_msg()
+            trajectory_goal.trajectory.joint_names = joint_names
+
+            if self.mode.data == 'trajectory':
+                point0 = JointTrajectoryPoint()
+                point0.time_from_start = Duration(seconds=0).to_msg()
+                
+                for joint in joint_names:
+                    point0.positions.append(self.joint_state.position[self.joint_state.name.index(joint)])
+
+                trajectory_goal.trajectory.points.append(point0)
+                point1.time_from_start = Duration(seconds=duration).to_msg()
+
+            if not custom_contact_thresholds: 
+                joint_positions = [pose[key] for key in joint_names]
+                point1.positions = joint_positions
+                trajectory_goal.trajectory.points.append(point1)
+            else:
+                pose_correct = all([len(pose[key])==2 for key in joint_names])
+                if not pose_correct:
+                    self.get_logger().error("HelloNode.move_to_pose: Not sending trajectory due to improper pose. custom_contact_thresholds requires 2 values (pose_target, contact_threshold_effort) for each joint name, but pose = {0}".format(pose))
+                    return
+                joint_positions = [pose[key][0] for key in joint_names]
+                joint_efforts = [pose[key][1] for key in joint_names]
+                point1.positions = joint_positions
+                point1.effort = joint_efforts
+                trajectory_goal.trajectory.points = [point1]
+            if blocking:
+                return self.trajectory_client.send_goal(trajectory_goal)
+            else:
+                return self.trajectory_client.send_goal_async(trajectory_goal)
 
     def get_tf(self, from_frame, to_frame):
         """Get current transform between 2 frames. Blocking for 2 secs at worst.
@@ -343,6 +384,13 @@ class HelloNode(Node):
         while not self.switch_to_navigation_mode_service.wait_for_service(timeout_sec=2.0):
             self.get_logger().info("Waiting on '/switch_to_navigation_mode' service...")
         self.get_logger().info('Node ' + self.node_name + ' connected to /switch_to_navigation_mode service.')
+
+        # Determine if the robot is in split_joint_trajectory_controller mode, as this affects the move_to_pose function
+        self.get_stretch_driver_parameter_service = self.create_client(GetParameters, '/stretch_driver/get_parameters', callback_group=self.reentrant_cb)
+        while not self.get_stretch_driver_parameter_service.wait_for_service(timeout_sec=2.0):
+            self.get_logger().info("Waiting on '/stretch_driver/get_parameters' service...")
+        self.get_logger().info('Node ' + self.node_name + ' connected to /stretch_driver/get_parameters service.')
+        self.split_joint_trajectory_controller = self.get_stretch_driver_parameter_service.call_async(GetParameters.Request(names=['split_joint_trajectory_controller']))[0].values[0].bool_value
         
         if wait_for_first_pointcloud:
             # Do not start until a point cloud has been received
