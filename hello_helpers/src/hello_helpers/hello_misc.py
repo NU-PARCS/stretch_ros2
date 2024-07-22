@@ -291,7 +291,7 @@ class HelloNode(Node):
                 self.get_logger().info("Sending head trajectory")
                 self.head_trajectory_client.send_goal_async(head_trajectory_goal)
                 self.get_logger().info("Sending body trajectory")
-                return self.body_trajectory_client.send_goal_async(trajectory_goal)
+                return self.body_trajectory_client.send_goal_async(body_trajectory_goal)
 
     def get_tf(self, from_frame, to_frame):
         """Get current transform between 2 frames. Blocking for 2 secs at worst.
@@ -382,7 +382,7 @@ class HelloNode(Node):
         while not self.get_stretch_driver_parameter_service.wait_for_service(timeout_sec=2.0):
             self.get_logger().info("Waiting on '/stretch_driver/get_parameters' service...")
         self.get_logger().info('Node ' + self.node_name + ' connected to /stretch_driver/get_parameters service.')
-        self.split_joint_trajectory_controller = self.get_stretch_driver_parameter_service.call_async(GetParameters.Request(names=['split_joint_trajectory_controller']))[0].values[0].bool_value
+        self.split_joint_trajectory_controller = self.get_stretch_driver_parameter_service.call(GetParameters.Request(names=['split_joint_trajectory_controller'])).values[0].bool_value
     
 
         # Connect to the head and body trajectory servers if split_joint_trajectory_controller is True
