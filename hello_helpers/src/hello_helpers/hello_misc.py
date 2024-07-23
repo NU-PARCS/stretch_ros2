@@ -169,6 +169,41 @@ class HelloNode(Node):
 
         return [r0[0], r0[1], r_ang], timestamp
     
+    def generate_traj_from_pose(self, pose, joint_names, custom_contact_thresholds = False, duration=2.0):
+        joint_names = [key for key in pose]
+        point1 = JointTrajectoryPoint()
+        point1.time_from_start = Duration(seconds=0).to_msg()
+
+        trajectory_goal = FollowJointTrajectory.Goal()
+        trajectory_goal.goal_time_tolerance = Duration(seconds=1.0).to_msg()
+        trajectory_goal.trajectory.joint_names = joint_names
+
+        if self.mode.data == 'trajectory':
+            point0 = JointTrajectoryPoint()
+            point0.time_from_start = Duration(seconds=0).to_msg()
+            
+            for joint in joint_names:
+                point0.positions.append(self.joint_state.position[self.joint_state.name.index(joint)])
+
+            trajectory_goal.trajectory.points.append(point0)
+            point1.time_from_start = Duration(seconds=duration).to_msg()
+
+        if not custom_contact_thresholds: 
+            joint_positions = [pose[key] for key in joint_names]
+            point1.positions = joint_positions
+            trajectory_goal.trajectory.points.append(point1)
+        else:
+            pose_correct = all([len(pose[key])==2 for key in joint_names])
+            if not pose_correct:
+                self.get_logger().error("HelloNode.move_to_pose: Not sending trajectory due to improper pose. custom_contact_thresholds requires 2 values (pose_target, contact_threshold_effort) for each joint name, but pose = {0}".format(pose))
+                return
+            joint_positions = [pose[key][0] for key in joint_names]
+            joint_efforts = [pose[key][1] for key in joint_names]
+            point1.positions = joint_positions
+            point1.effort = joint_efforts
+            trajectory_goal.trajectory.points = [point1]
+        return trajectory_goal
+
     def move_to_pose(self, pose, blocking=True, custom_contact_thresholds=False, duration=2.0):
         if self.dryrun:
             return
@@ -219,66 +254,12 @@ class HelloNode(Node):
             # If split trajectory controller, generate 2 separate trajectories for the head and body
             head_joint_names = [key for key in pose if 'head' in key]
             body_joint_names = [key for key in pose if 'head' not in key]
+            head_poses = {key: pose[key] for key in head_joint_names}
+            body_poses = {key: pose[key] for key in body_joint_names}
+
+            head_trajectory_goal = self.generate_traj_from_pose(head_poses, head_joint_names, custom_contact_thresholds, duration)
+            body_trajectory_goal = self.generate_traj_from_pose(body_poses, body_joint_names, custom_contact_thresholds, duration)
             
-            head_point1 = JointTrajectoryPoint()
-            head_point1.time_from_start = Duration(seconds=0).to_msg()
-            
-            body_point1 = JointTrajectoryPoint()
-            body_point1.time_from_start = Duration(seconds=0).to_msg()
-            
-            head_trajectory_goal = FollowJointTrajectory.Goal()
-            head_trajectory_goal.goal_time_tolerance = Duration(seconds=1.0).to_msg()
-            head_trajectory_goal.trajectory.joint_names = head_joint_names
-
-            body_trajectory_goal = FollowJointTrajectory.Goal()
-            body_trajectory_goal.goal_time_tolerance = Duration(seconds=1.0).to_msg()
-            body_trajectory_goal.trajectory.joint_names = body_joint_names
-            
-
-            if self.mode.data == 'trajectory':
-                head_point0 = JointTrajectoryPoint()
-                head_point0.time_from_start = Duration(seconds=0).to_msg()
-                
-                body_point0 = JointTrajectoryPoint()
-                body_point0.time_from_start = Duration(seconds=0).to_msg()
-
-                for joint in head_joint_names:
-                    head_point0.positions.append(self.joint_state.position[self.joint_state.name.index(joint)])
-
-                head_trajectory_goal.trajectory.points.append(head_point0)
-                head_point1.time_from_start = Duration(seconds=duration).to_msg()
-
-                for joint in body_joint_names:
-                    body_point0.positions.append(self.joint_state.position[self.joint_state.name.index(joint)])
-
-                body_trajectory_goal.trajectory.points.append(body_point0)
-                body_point1.time_from_start = Duration(seconds=duration).to_msg()
-
-            if not custom_contact_thresholds: 
-                head_joint_positions = [pose[key] for key in head_joint_names]
-                head_point1.positions = head_joint_positions
-                head_trajectory_goal.trajectory.points.append(head_point1)
-
-                body_joint_positions = [pose[key] for key in body_joint_names]
-                body_point1.positions = body_joint_positions
-                body_trajectory_goal.trajectory.points.append(body_point1)
-            else:
-                pose_correct = all([len(pose[key])==2 for key in set(head_joint_names + body_joint_names)])
-                if not pose_correct:
-                    self.get_logger().error("HelloNode.move_to_pose: Not sending trajectory due to improper pose. custom_contact_thresholds requires 2 values (pose_target, contact_threshold_effort) for each joint name, but pose = {0}".format(pose))
-                    return
-                
-                head_joint_positions = [pose[key][0] for key in head_joint_names]
-                head_joint_efforts = [pose[key][1] for key in head_joint_names]
-                head_point1.positions = head_joint_positions
-                head_point1.effort = head_joint_efforts
-                head_trajectory_goal.trajectory.points = [head_point1]
-
-                body_joint_positions = [pose[key][0] for key in body_joint_names]
-                body_joint_efforts = [pose[key][1] for key in body_joint_names]
-                body_point1.positions = body_joint_positions
-                body_point1.effort = body_joint_efforts
-                body_trajectory_goal.trajectory.points = [body_point1]
             
             if blocking:
                 if len(head_joint_names) > 0:
