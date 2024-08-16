@@ -170,7 +170,6 @@ class HelloNode(Node):
         return [r0[0], r0[1], r_ang], timestamp
     
     def generate_traj_from_pose(self, pose, joint_names, custom_contact_thresholds = False, duration=2.0):
-        joint_names = [key for key in pose]
         point1 = JointTrajectoryPoint()
         point1.time_from_start = Duration(seconds=0).to_msg()
 
@@ -214,37 +213,7 @@ class HelloNode(Node):
         
         if not self.split_joint_trajectory_controller:
             joint_names = [key for key in pose]
-            point1 = JointTrajectoryPoint()
-            point1.time_from_start = Duration(seconds=0).to_msg()
-
-            trajectory_goal = FollowJointTrajectory.Goal()
-            trajectory_goal.goal_time_tolerance = Duration(seconds=1.0).to_msg()
-            trajectory_goal.trajectory.joint_names = joint_names
-
-            if self.mode.data == 'trajectory':
-                point0 = JointTrajectoryPoint()
-                point0.time_from_start = Duration(seconds=0).to_msg()
-                
-                for joint in joint_names:
-                    point0.positions.append(self.joint_state.position[self.joint_state.name.index(joint)])
-
-                trajectory_goal.trajectory.points.append(point0)
-                point1.time_from_start = Duration(seconds=duration).to_msg()
-
-            if not custom_contact_thresholds: 
-                joint_positions = [pose[key] for key in joint_names]
-                point1.positions = joint_positions
-                trajectory_goal.trajectory.points.append(point1)
-            else:
-                pose_correct = all([len(pose[key])==2 for key in joint_names])
-                if not pose_correct:
-                    self.get_logger().error("HelloNode.move_to_pose: Not sending trajectory due to improper pose. custom_contact_thresholds requires 2 values (pose_target, contact_threshold_effort) for each joint name, but pose = {0}".format(pose))
-                    return
-                joint_positions = [pose[key][0] for key in joint_names]
-                joint_efforts = [pose[key][1] for key in joint_names]
-                point1.positions = joint_positions
-                point1.effort = joint_efforts
-                trajectory_goal.trajectory.points = [point1]
+            trajectory_goal = self.generate_traj_from_pose(pose, joint_names, custom_contact_thresholds, duration)
             
             if blocking:
                 return self.trajectory_client.send_goal(trajectory_goal)

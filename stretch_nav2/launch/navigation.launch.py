@@ -42,7 +42,7 @@ def generate_launch_description():
 
     stretch_driver_launch = IncludeLaunchDescription(
         PythonLaunchDescriptionSource([stretch_core_path, '/launch/stretch_driver.launch.py']),
-        launch_arguments={'mode': 'navigation', 'broadcast_odom_tf': 'True'}.items())
+        launch_arguments={'mode': 'navigation', 'broadcast_odom_tf': 'True', 'joy_runstop_enabled': 'False'}.items())
 
     rplidar_launch = IncludeLaunchDescription(
         PythonLaunchDescriptionSource([stretch_core_path, '/launch/rplidar.launch.py']))
