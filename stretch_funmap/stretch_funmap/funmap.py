@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 import rclpy
-from rclpy.action import ActionServer
+from rclpy.action import ActionServer, ActionClient
 from rclpy.callback_groups import ReentrantCallbackGroup
 from rclpy.client import Client
 from rclpy.duration import Duration
@@ -16,7 +16,7 @@ from nav2_msgs.action import NavigateToPose
 import ros2_numpy
 from sensor_msgs.msg import JointState, PointCloud2
 from std_srvs.srv import Trigger
-from tf_transformations import euler_from_quaternion
+from tf_transformations import euler_from_quaternion, quaternion_from_euler
 from tf2_geometry_msgs import do_transform_pose
 import tf2_ros
 from visualization_msgs.msg import Marker, MarkerArray
@@ -1281,13 +1281,94 @@ class FunmapNode(hm.HelloNode):
     def reach_point_callback(self, point_stamped):
         self.reach_point = point_stamped
 
+
+    def reach_to_point(self, clicked_msg):
+        self.logger.info('clicked_msg =' + str(clicked_msg))
+
+        clicked_frame_id = clicked_msg.header.frame_id
+        clicked_timestamp = clicked_msg.header.stamp
+        clicked_point = clicked_msg.point
+
+        max_height_im = self.merged_map.max_height_im
+        # Check if a map exists
+        if self.merged_map is None:
+            message = 'No map exists yet, so unable to plan a reach.'
+            self.logger.error(message)
+            return
+
+        points_to_image_mat, pi_timestamp = max_height_im.get_points_to_image_mat(
+            clicked_frame_id, self.tf2_buffer)
+
+        if points_to_image_mat is None:
+            self.logger.error('points_to_image_mat not found')
+            return
+
+        c_x = clicked_point.x
+        c_y = clicked_point.y
+        c_z = clicked_point.z
+        clicked_xyz = np.array([c_x, c_y, c_z, 1.0])
+        clicked_image_pixel = np.matmul(points_to_image_mat, clicked_xyz)[:3]
+        i_x, i_y, i_z = clicked_image_pixel
+        self.logger.info('clicked_image_pixel =' + str(clicked_image_pixel))
+
+        h, w = max_height_im.image.shape
+        if not ((i_x >= 0) and (i_y >= 0) and (i_x < w) and (i_y < h)):
+            self.logger.error(
+                'clicked point does not fall within the bounds of the max_height_image')
+            return
+
+        robot_xy_pix, robot_ang_rad, timestamp = max_height_im.get_robot_pose_in_image(
+            self.tf2_buffer)
+        robot_xya_pix = [robot_xy_pix[0], robot_xy_pix[1], robot_ang_rad]
+
+        reach_xyz_pix = clicked_image_pixel
+        robot_reach_xya_pix, simple_reach_plan = self.plan_to_reach(
+            reach_xyz_pix, robot_xya_pix=robot_xya_pix)
+
+        # success, message = self.navigate_to_map_pixel(robot_reach_xya_pix[:2],
+        #                                               end_angle=robot_reach_xya_pix[2],
+        #                                               robot_xya_pix=robot_xya_pix)
+        
+        robot_reach_xy = max_height_im.get_pix_in_frame([robot_reach_xya_pix[0], robot_reach_xya_pix[1], 0], 'map', self.tf2_buffer)
+        nav_goal_pose = PoseStamped()
+        nav_goal_pose.header.frame_id = 'map'
+        nav_goal_pose.header.stamp = self.clock.now().to_msg()
+        nav_goal_pose.pose.position.x = float(robot_reach_xy[0])
+        nav_goal_pose.pose.position.y = float(robot_reach_xy[1])
+        nav_goal_pose.pose.position.z = 0.0
+        goal_orientation = quaternion_from_euler(0.0, 0.0, robot_reach_xya_pix[2])
+        nav_goal_pose.pose.orientation.x = 0.0
+        nav_goal_pose.pose.orientation.y = 0.0
+        nav_goal_pose.pose.orientation.z = goal_orientation[2]
+        nav_goal_pose.pose.orientation.w = goal_orientation[3]
+        
+        print(nav_goal_pose)
+
+        success = self.navigate_to_pose_action_client.send_goal(NavigateToPose.Goal(pose = nav_goal_pose))
+        # success = True
+        self.get_logger().info('Finished the navigate to pose action')
+
+
+        self.logger.info('Navigation complete')
+        print(len(simple_reach_plan))
+        if success:
+            for pose in simple_reach_plan:
+                self.move_to_pose(pose)
+                self.logger.info("Reached a single target")
+            self.logger.info("Reached the clicked point.")
+        else:
+            self.logger.error(message)
+            self.logger.error('Aborting reach attempt due to failed navigation')
+
+        return success
+
     def reach_point_service_callback(self, goal_handle):
         goal_pose = goal_handle.request.pose
         # if self.reach_point is None:
         #     self.logger.error('No reach point has been set.')
         #     return response
 
-        success = self.reach_to_click_callback(self.reach_point)
+        success = self.reach_to_point(self.reach_point)
         result = NavigateToPose.Result()
         self.get_logger().info('Finished the reach to click callback')
         if success:
@@ -1323,6 +1404,9 @@ class FunmapNode(hm.HelloNode):
                                                            execute_callback=self.navigate_to_goal_action_callback,
                                                            callback_group=self.callback_group)
         # self.navigate_to_goal_action_server.start()
+
+        self.navigate_to_pose_action_client = ActionClient(self, NavigateToPose, '/navigate_to_pose')
+        self.navigate_to_pose_action_client.wait_for_server()
 
         self.navigation_goal_subscriber = self.create_subscription(PoseStamped,
                                                                    '/move_base_simple/goal',
@@ -1413,7 +1497,7 @@ class FunmapNode(hm.HelloNode):
         with self.map_odom_tf_lock:
             self.map_to_odom_transform_mat = np.identity(4)
 
-        self.map_odom_tf_timer = self.create_timer(timer_period, self.publish_map_to_odom_tf, callback_group=self.callback_group)
+        # self.map_odom_tf_timer = self.create_timer(timer_period, self.publish_map_to_odom_tf, callback_group=self.callback_group)
 
         self.publish_map_point_cloud_timer = self.create_timer(timer_period, self.publish_map_point_cloud, callback_group=self.callback_group)
 
