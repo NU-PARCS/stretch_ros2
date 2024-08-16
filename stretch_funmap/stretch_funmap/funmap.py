@@ -1344,7 +1344,9 @@ class FunmapNode(hm.HelloNode):
         
         print(nav_goal_pose)
 
+        self.switch_to_navigation_mode()
         success = self.navigate_to_pose_action_client.send_goal(NavigateToPose.Goal(pose = nav_goal_pose))
+        self.switch_to_position_mode()
         # success = True
         self.get_logger().info('Finished the navigate to pose action')
 
