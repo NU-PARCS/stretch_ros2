@@ -1019,12 +1019,12 @@ def main():
             node.head_joint_trajectory_action = HeadJointTrajectoryAction(node, node.action_server_rate)
             node.body_joint_trajectory_action = BodyJointTrajectoryAction(node, node.action_server_rate)
             executor.add_node(node)
-            executor.add_node(node.head_joint_trajectory_action)
-            executor.add_node(node.body_joint_trajectory_action)
+            # executor.add_node(node.head_joint_trajectory_action)
+            # executor.add_node(node.body_joint_trajectory_action)
         else:
             node.joint_trajectory_action = JointTrajectoryAction(node, node.action_server_rate)
             executor.add_node(node)
-            executor.add_node(node.joint_trajectory_action)
+            # executor.add_node(node.joint_trajectory_action)
         try:
             executor.spin()
         finally:
