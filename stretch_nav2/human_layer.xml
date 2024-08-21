@@ -1,0 +1,5 @@
+<library path="stretch_nav2_core">
+    <class name="stretch_nav2/HumanPathLayer" type="stretch_nav2::HumanPathLayer" base_class_type="nav2_costmap_2d::Layer">
+        <description>Human Layer</description>
+    </class>
+</library>

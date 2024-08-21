@@ -255,7 +255,7 @@ local_costmap:
           obstacle_max_range: 2.5
           obstacle_min_range: 0.0
       human_layer:
-        plugin: "nav2_costmap_2d::ObstacleLayer"
+        plugin: "stretch_nav2/HumanPathLayer"
         enabled: True
         observation_sources: human
         footprint_clearing_enabled: False
@@ -338,7 +338,7 @@ global_costmap:
           decay_acceleration: 15.0
           model_type: 0      
       human_layer:
-        plugin: "nav2_costmap_2d::ObstacleLayer"
+        plugin: "stretch_nav2/HumanPathLayer"
         enabled: True
         observation_sources: human
         footprint_clearing_enabled: False

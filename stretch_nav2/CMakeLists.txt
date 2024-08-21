@@ -5,11 +5,25 @@ if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
 
+set (lib_name stretch_nav2_core)
+
 # find dependencies
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
+find_package(nav2_costmap_2d REQUIRED)
+find_package(pluginlib REQUIRED)
 
+set(dep_pkgs
+  rclcpp
+  nav2_costmap_2d
+  pluginlib
+)
 # include Cpp "include" directory
+include_directories(include)
+
+add_library(${lib_name} SHARED
+  stretch_nav2/human_layer.cpp
+)
 include_directories(include)
 
 if(BUILD_TESTING)
@@ -27,6 +41,8 @@ install(DIRECTORY launch DESTINATION share/${PROJECT_NAME})
 install(DIRECTORY config DESTINATION share/${PROJECT_NAME})
 # install(DIRECTORY map DESTINATION share/${PROJECT_NAME})
 install(DIRECTORY stretch_nav2 DESTINATION share/${PROJECT_NAME})
+install(TARGETS ${lib_name}
+  DESTINATION lib)
 
 # Install Python modules
 ament_python_install_package(${PROJECT_NAME})
@@ -36,5 +52,7 @@ install(PROGRAMS
   stretch_nav2/simple_commander_demo.py
   DESTINATION lib/${PROJECT_NAME}
 )
+pluginlib_export_plugin_description_file(nav2_costmap_2d human_layer.xml)
 
+ament_target_dependencies(${lib_name} ${dep_pkgs})
 ament_package()
