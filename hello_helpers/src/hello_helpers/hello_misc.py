@@ -248,11 +248,11 @@ class HelloNode(Node):
                     return self.body_trajectory_client.send_goal_async(body_trajectory_goal)
             return
 
-    def get_tf(self, from_frame, to_frame):
+    def get_tf(self, from_frame, to_frame, timeout=2.0):
         """Get current transform between 2 frames. Blocking for 2 secs at worst.
         """
         try:
-            return self.tf2_buffer.lookup_transform(from_frame, to_frame, Time(), timeout=Duration(seconds=2.0))
+            return self.tf2_buffer.lookup_transform(from_frame, to_frame, Time(), timeout=Duration(seconds=timeout))
         except:
             self.get_logger().warn("Could not find the transform between frames {} and {}".format(from_frame, to_frame))
 
