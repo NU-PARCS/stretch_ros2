@@ -259,6 +259,7 @@ local_costmap:
         enabled: True
         observation_sources: human
         footprint_clearing_enabled: False
+        always_send_full_costmap: True
         human:
           topic: /human_path
           max_obstacle_height: 2.0
@@ -342,6 +343,7 @@ global_costmap:
         enabled: True
         observation_sources: human
         footprint_clearing_enabled: False
+        always_send_full_costmap: True
         human:
           topic: /human_path
           max_obstacle_height: 2.0
