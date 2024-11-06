@@ -62,10 +62,6 @@ namespace nav2_costmap_2d
 
 GradientHumanLayer::~GradientHumanLayer()
 {
-  auto node = node_.lock();
-  if (dyn_params_handler_ && node) {
-    node->remove_on_set_parameters_callback(dyn_params_handler_.get());
-  }
   dyn_params_handler_.reset();
   for (auto & notifier : observation_notifiers_) {
     notifier.reset();
@@ -96,13 +92,10 @@ void GradientHumanLayer::onInitialize()
   node->get_parameter(name_ + "." + "footprint_clearing_enabled", footprint_clearing_enabled_);
   node->get_parameter(name_ + "." + "min_obstacle_height", min_obstacle_height_);
   node->get_parameter(name_ + "." + "max_obstacle_height", max_obstacle_height_);
+  node->get_parameter(name_ + "." + "combination_method", combination_method_);
   node->get_parameter("track_unknown_space", track_unknown_space);
   node->get_parameter("transform_tolerance", transform_tolerance);
   node->get_parameter(name_ + "." + "observation_sources", topics_string);
-
-  int combination_method_param{};
-  node->get_parameter(name_ + "." + "combination_method", combination_method_param);
-  combination_method_ = combination_method_from_int(combination_method_param);
 
   dyn_params_handler_ = node->add_on_set_parameters_callback(
     std::bind(
@@ -225,7 +218,8 @@ void GradientHumanLayer::onInitialize()
       source.c_str(), topic.c_str(),
       global_frame_.c_str(), expected_update_rate, observation_keep_time);
 
-    const auto custom_qos_profile = rclcpp::SensorDataQoS().keep_last(50);
+    rmw_qos_profile_t custom_qos_profile = rmw_qos_profile_sensor_data;
+    custom_qos_profile.depth = 50;
 
     // create a callback for the topic
     if (data_type == "LaserScan") {
@@ -320,7 +314,7 @@ GradientHumanLayer::dynamicParametersCallback(
       }
     } else if (param_type == ParameterType::PARAMETER_INTEGER) {
       if (param_name == name_ + "." + "combination_method") {
-        combination_method_ = combination_method_from_int(parameter.as_int());
+        combination_method_ = parameter.as_int();
       }
     }
   }
@@ -549,14 +543,11 @@ GradientHumanLayer::updateCosts(
   }
 
   switch (combination_method_) {
-    case CombinationMethod::Overwrite:
+    case 0:  // Overwrite
       updateWithOverwrite(master_grid, min_i, min_j, max_i, max_j);
       break;
-    case CombinationMethod::Max:
+    case 1:  // Maximum
       updateWithMax(master_grid, min_i, min_j, max_i, max_j);
-      break;
-    case CombinationMethod::MaxWithoutUnknownOverwrite:
-      updateWithMaxWithoutUnknownOverwrite(master_grid, min_i, min_j, max_i, max_j);
       break;
     default:  // Nothing
       break;
@@ -772,6 +763,4 @@ GradientHumanLayer::resetBuffersLastUpdated()
   }
 }
 
-// }  // namespace stretch_nav2   
-// #include "pluginlib/class_list_macros.hpp"
-// PLUGINLIB_EXPORT_CLASS(stretch_nav2::GradientHumanLayer, nav2_costmap_2d::Layer)
+}  // namespace nav2_costmap_2d

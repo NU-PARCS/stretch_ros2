@@ -35,8 +35,8 @@
  * Author: Eitan Marder-Eppstein
  *         David V. Lu!!
  *********************************************************************/
-#ifndef STRETCH_NAV2__GRADIENT_HUMAN_LAYER_HPP_
-#define STRETCH_NAV2__GRADIENT_HUMAN_LAYER_HPP_
+#ifndef STRETCH_NAV2__HUMAN_PATH_LAYER_HPP_
+#define STRETCH_NAV2__HUMAN_PATH_LAYER_HPP_
 
 #include <memory>
 #include <string>
@@ -257,4 +257,4 @@ protected:
 
 }  // namespace nav2_costmap_2d
 
-#endif  // NAV2_COSTMAP_2D__OBSTACLE_LAYER_HPP_
+#endif  // STRETCH_NAV2__HUMAN_PATH_LAYER_HPP_
