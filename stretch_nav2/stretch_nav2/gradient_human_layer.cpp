@@ -497,7 +497,7 @@ GradientHumanLayer::updateBounds(
       }
 
       unsigned int index = getIndex(mx, my);
-      costmap_[index] = LETHAL_OBSTACLE;
+      costmap_[index] = 200;
       touch(px, py, min_x, min_y, max_x, max_y);
     }
   }
