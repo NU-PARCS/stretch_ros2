@@ -26,6 +26,7 @@
 
   <export>
     <costmap_2d plugin="${prefix}/human_layer.xml" />
+    <costmap_2d plugin="${prefix}/gradient_human_layer.xml" />
     <build_type>ament_cmake</build_type>
   </export>
 </package>

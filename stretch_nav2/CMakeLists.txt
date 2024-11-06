@@ -53,6 +53,7 @@ install(PROGRAMS
   DESTINATION lib/${PROJECT_NAME}
 )
 pluginlib_export_plugin_description_file(nav2_costmap_2d human_layer.xml)
+pluginlib_export_plugin_description_file(nav2_costmap_2d gradient_layer.xml)
 
 ament_target_dependencies(${lib_name} ${dep_pkgs})
 ament_package()
