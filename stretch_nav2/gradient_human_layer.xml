@@ -1,5 +1,5 @@
-<library path="nav2_gradient_costmap_plugin_core">
-  <class name="nav2_gradient_costmap_plugin/GradientHumanLayer" type="nav2_gradient_costmap_plugin::GradientHumanLayer" base_class_type="nav2_costmap_2d::Layer">
+<library path="stretch_nav2_core">
+  <class name="stretch_nav2/GradientHumanLayer" type="nav2_costmap_2d::GradientHumanLayer" base_class_type="nav2_costmap_2d::Layer">
     <description>This is an example plugin which puts repeating costs gradients to costmap</description>
   </class>
 </library>

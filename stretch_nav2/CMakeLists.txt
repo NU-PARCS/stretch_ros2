@@ -12,18 +12,23 @@ find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(nav2_costmap_2d REQUIRED)
 find_package(pluginlib REQUIRED)
+find_package(message_filters REQUIRED)
+
 
 set(dep_pkgs
   rclcpp
   nav2_costmap_2d
   pluginlib
+  message_filters
 )
 # include Cpp "include" directory
 include_directories(include)
 
 add_library(${lib_name} SHARED
   stretch_nav2/human_layer.cpp
+  stretch_nav2/gradient_human_layer.cpp
 )
+
 include_directories(include)
 
 if(BUILD_TESTING)
@@ -53,7 +58,7 @@ install(PROGRAMS
   DESTINATION lib/${PROJECT_NAME}
 )
 pluginlib_export_plugin_description_file(nav2_costmap_2d human_layer.xml)
-pluginlib_export_plugin_description_file(nav2_costmap_2d gradient_layer.xml)
+pluginlib_export_plugin_description_file(nav2_costmap_2d gradient_human_layer.xml)
 
 ament_target_dependencies(${lib_name} ${dep_pkgs})
 ament_package()
