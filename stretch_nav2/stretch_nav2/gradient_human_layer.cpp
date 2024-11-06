@@ -36,7 +36,7 @@
  *         David V. Lu!!
  *         Steve Macenski
  *********************************************************************/
-#include "stretch_nav2/obstacle_layer.hpp"
+#include "stretch_nav2/gradient_human_layer.hpp"
 
 #include <algorithm>
 #include <memory>
@@ -47,7 +47,7 @@
 #include "sensor_msgs/point_cloud2_iterator.hpp"
 #include "nav2_costmap_2d/costmap_math.hpp"
 
-PLUGINLIB_EXPORT_CLASS(nav2_costmap_2d::GradientHumanLayer, nav2_costmap_2d::Layer)
+PLUGINLIB_EXPORT_CLASS(stretch_nav2::GradientHumanLayer, nav2_costmap_2d::Layer)
 
 using nav2_costmap_2d::NO_INFORMATION;
 using nav2_costmap_2d::LETHAL_OBSTACLE;
@@ -772,6 +772,6 @@ GradientHumanLayer::resetBuffersLastUpdated()
   }
 }
 
-}  // namespace stretch_nav2   
-#include "pluginlib/class_list_macros.hpp"
-PLUGINLIB_EXPORT_CLASS(stretch_nav2::GradientHumanLayer, nav2_costmap_2d::Layer)
+// }  // namespace stretch_nav2   
+// #include "pluginlib/class_list_macros.hpp"
+// PLUGINLIB_EXPORT_CLASS(stretch_nav2::GradientHumanLayer, nav2_costmap_2d::Layer)
