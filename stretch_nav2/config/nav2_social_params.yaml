@@ -271,7 +271,7 @@ local_costmap:
       human_layer:
         plugin: "nav2_social_costmap_plugin::SocialLayer"
         people_topic: "/people"
-        enabled: True
+        enabled: False
         cutoff: 10.0
         amplitude: 255.0
         publish_occgrid: False
