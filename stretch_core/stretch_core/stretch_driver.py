@@ -670,7 +670,7 @@ class StretchDriver(Node):
         # If command groups are split, the separate body and head joint trajectory action servers need to be added together
         if self.split_joint_trajectory_controller:
             base_cgs = set(self.body_joint_trajectory_action.command_groups)
-            base_cgs.update(self.head_joint_trajecotry_action.command_groups)
+            base_cgs.update(self.head_joint_trajectory_action.command_groups)
             cgs = list(base_cgs - set([self.body_joint_trajectory_action.mobile_base_cg, self.body_joint_trajectory_action.gripper_cg]))
         else:
             cgs = list(set(self.joint_trajectory_action.command_groups) - set([self.joint_trajectory_action.mobile_base_cg, self.joint_trajectory_action.gripper_cg]))
